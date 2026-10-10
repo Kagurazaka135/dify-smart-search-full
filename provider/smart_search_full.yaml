@@ -1,0 +1,138 @@
+identity:
+  author: "kagurazaka135"
+  name: "smart_search_full"
+  label:
+    en_US: "Smart Search"
+    zh_Hans: "智能搜索"
+    ja_JP: "スマート検索"
+    pt_BR: "Busca Inteligente"
+  description:
+    en_US: "Multi-round LLM-driven web search with structured summarization."
+    zh_Hans: "多轮 LLM 驱动的网页搜索，输出结构化汇总。"
+    ja_JP: "マルチラウンドの LLM 駆動ウェブ検索と構造化要約。"
+    pt_BR: "Busca na web em múltiplas rodadas com resumo estruturado."
+  icon: "icon.svg"
+
+credentials_for_provider:
+  serper_api_key:
+    type: secret-input
+    required: false
+    label:
+      en_US: "Serper API Key"
+      zh_Hans: "Serper API 密钥"
+      ja_JP: "Serper API キー"
+      pt_BR: "Chave de API do Serper"
+    placeholder:
+      en_US: "Enter your Serper API key (recommended primary backend)"
+      zh_Hans: "输入你的 Serper API 密钥（推荐作为主力后端）"
+      ja_JP: "Serper API キーを入力（主力バックエンド推奨）"
+      pt_BR: "Insira sua chave de API do Serper (backend principal recomendado)"
+    help:
+      en_US: "Get a key at https://serper.dev. Uses the Google SERP API."
+      zh_Hans: "在 https://serper.dev 获取密钥，走 Google SERP 接口。"
+      ja_JP: "https://serper.dev で取得。Google SERP API を利用します。"
+      pt_BR: "Obtenha em https://serper.dev. Usa a API Google SERP."
+    url: "https://serper.dev"
+  serpapi_api_key:
+    type: secret-input
+    required: false
+    label:
+      en_US: "SerpApi Key"
+      zh_Hans: "SerpApi 密钥"
+      ja_JP: "SerpApi キー"
+      pt_BR: "Chave do SerpApi"
+    placeholder:
+      en_US: "Enter your SerpApi key (serpapi.com)"
+      zh_Hans: "输入你的 SerpApi 密钥（serpapi.com）"
+      ja_JP: "SerpApi キーを入力（serpapi.com）"
+      pt_BR: "Insira sua chave do SerpApi (serpapi.com)"
+    help:
+      en_US: "Get a key at https://serpapi.com. Uses the Google Search API."
+      zh_Hans: "在 https://serpapi.com 获取密钥，走 Google 搜索接口。"
+      ja_JP: "https://serpapi.com で取得。Google 検索 API を利用します。"
+      pt_BR: "Obtenha em https://serpapi.com. Usa a API de busca do Google."
+    url: "https://serpapi.com"
+  google_api_key:
+    type: secret-input
+    required: false
+    label:
+      en_US: "Google API Key"
+      zh_Hans: "Google API 密钥"
+      ja_JP: "Google API キー"
+      pt_BR: "Chave de API do Google"
+    placeholder:
+      en_US: "Enter your Google Programmable Search API key"
+      zh_Hans: "输入你的 Google Programmable Search API 密钥"
+      ja_JP: "Google Programmable Search の API キーを入力"
+      pt_BR: "Insira sua chave do Google Programmable Search"
+    help:
+      en_US: "Requires the Custom Search JSON API. Pair with the Search Engine ID (cx)."
+      zh_Hans: "需要开通 Custom Search JSON API，与搜索引擎 ID（cx）成对使用。"
+      ja_JP: "Custom Search JSON API が必要。検索エンジン ID（cx）と併用します。"
+      pt_BR: "Requer a Custom Search JSON API. Combine com o ID do mecanismo (cx)."
+    url: "https://developers.google.com/custom-search/v1/overview"
+  google_cx:
+    type: text-input
+    required: false
+    label:
+      en_US: "Google Search Engine ID (cx)"
+      zh_Hans: "Google 搜索引擎 ID（cx）"
+      ja_JP: "Google 検索エンジン ID（cx）"
+      pt_BR: "ID do mecanismo de busca Google (cx)"
+    placeholder:
+      en_US: "Enter your Programmable Search Engine ID (cx)"
+      zh_Hans: "输入你的 Programmable Search Engine ID（cx）"
+      ja_JP: "Programmable Search Engine ID（cx）を入力"
+      pt_BR: "Insira o ID do mecanismo de busca (cx)"
+    help:
+      en_US: "Created at https://programmablesearchengine.google.com. Required together with the Google API key."
+      zh_Hans: "在 https://programmablesearchengine.google.com 创建，需与 Google API 密钥同时配置。"
+      ja_JP: "https://programmablesearchengine.google.com で作成。Google API キーと同時に設定します。"
+      pt_BR: "Criado em https://programmablesearchengine.google.com. Necessário junto com a chave do Google."
+    url: "https://programmablesearchengine.google.com"
+  bing_api_key:
+    type: secret-input
+    required: false
+    label:
+      en_US: "Bing Web Search Key"
+      zh_Hans: "Bing Web Search 密钥"
+      ja_JP: "Bing Web Search キー"
+      pt_BR: "Chave do Bing Web Search"
+    placeholder:
+      en_US: "Enter your Azure Bing Web Search subscription key"
+      zh_Hans: "输入你的 Azure Bing Web Search 订阅密钥"
+      ja_JP: "Azure Bing Web Search のサブスクリプションキーを入力"
+      pt_BR: "Insira sua chave do Azure Bing Web Search"
+    help:
+      en_US: "Azure Cognitive Services subscription key for Bing Web Search v7."
+      zh_Hans: "Azure 认知服务 Bing Web Search v7 订阅密钥。"
+      ja_JP: "Bing Web Search v7 の Azure Cognitive Services キー。"
+      pt_BR: "Chave do Azure Cognitive Services para o Bing Web Search v7."
+    url: "https://www.microsoft.com/en-us/bing/apis/bing-web-search-api"
+  searxng_base_url:
+    type: text-input
+    required: false
+    label:
+      en_US: "SearXNG Base URL"
+      zh_Hans: "SearXNG 基础地址"
+      ja_JP: "SearXNG ベース URL"
+      pt_BR: "URL base do SearXNG"
+    placeholder:
+      en_US: "e.g. https://searxng.example.com"
+      zh_Hans: "例如 https://searxng.example.com"
+      ja_JP: "例: https://searxng.example.com"
+      pt_BR: "ex.: https://searxng.example.com"
+    help:
+      en_US: "Base URL of a self-hosted SearXNG instance with the JSON format enabled."
+      zh_Hans: "自建 SearXNG 实例的基础地址，需开启 JSON 格式输出。"
+      ja_JP: "JSON 形式を有効にした自前 SearXNG インスタンスのベース URL。"
+      pt_BR: "URL base de uma instância SearXNG própria com o formato JSON habilitado."
+  # Either a Serper key, a Google key+cx pair, a Bing key, or a SearXNG base URL
+  # must be provided; the plugin tries the configured backends in order.
+
+tools:
+  - tools/smart_search.yaml
+
+extra:
+  python:
+    source: provider/smart_search_full.py
