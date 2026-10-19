@@ -1,93 +1,107 @@
 # 智能搜索（满血版）
 
-一个 Dify 工具插件：把一个问题变成**多轮、LLM 驱动的网页调研**，并返回结构化的平衡汇总。
+**给 Dify Agent 与工作流用的多轮网页调研工具。**
 
-市面上的搜索插件大多只做一件事——拿一个查询，调一次搜索 API，回十条链接。
-本插件往上补一层：它会**规划**搜索、**评估**结果、结果不够就**换词重搜**，最后把答案
-拆成"支持 / 反对 / 中性事实"三部分回报。
+市面上大多数搜索插件只做一件事：拿到查询词，调一次搜索 API，返回十条链接，然后结束。这个插件把搜索当成一个过程：先规划几个角度、跑一遍、判断结果够不够、不够就换个说法再搜，最后给出一份把正反观点分开的结构化结论。
 
-## 它做什么
+当一次搜索不够用时用它：市场调研、竞品分析、事实核查、文献扫描，以及任何答案散落在多个来源里的问题。
 
-```
-[1] 拆词       -> 让工作区 LLM 生成 2-3 个搜索角度
-[2] 并发搜索   -> Serper / SerpApi（主力），Google / Bing / SearXNG 自动降级
-[3] 评质       -> LLM 统计相关条数并给出"够/勉强/不够"
-                  -> 不够且还有轮数？带着新角度回到 [1]
-[4] 抓正文     -> 可选、需显式开启：从高质量结果 URL 取正文
-[5] 结构化汇总 -> 正/反/中性观点，每条带来源
-```
+## 你会得到什么
 
-所有 LLM 调用都走 Dify 的**反向调用**：插件用工作区自己的模型和凭据，
-自身不持有任何 LLM 密钥。
-
-## 参数
-
-| 名称 | 类型 | 必填 | 默认 | 说明 |
-|---|---|---|---|---|
-| `query` | string | 是 | — | 要调研的问题或主题。 |
-| `model` | model-selector | 是 | — | 用于拆词、评质、汇总的工作区 LLM。 |
-| `max_rounds` | number | 否 | `3` | 停止细化前的最大搜索轮数。 |
-| `fetch_content` | boolean | 否 | `false` | 是否抓取并阅读高质量结果的正文（遵守 robots.txt）。 |
-
-## 输出
+你给一个问题，拿回一份**可追溯**的调研过程：
 
 ```json
 {
   "search_process": [
-    {"round": 1, "queries": ["..."], "relevant": 5, "verdict": "not enough"}
+    {"round": 1, "queries": ["Dify 自托管 云版 对比", "Dify Cloud 价格"],
+     "relevant": 7, "verdict": "borderline"},
+    {"round": 2, "queries": ["Dify 云版 数据驻留", "Dify 自托管 规模 成本"],
+     "relevant": 12, "verdict": "sufficient"}
   ],
-  "supporting": [{"point": "...", "sources": ["https://..."]}],
-  "opposing": [{"point": "...", "sources": ["https://..."]}],
-  "neutral_facts": [{"fact": "...", "source": "https://..."}],
-  "summary": "200-300 字的综合判断。",
-  "confidence": "high | medium | low"
+  "supporting": [{"point": "自托管可以摆脱按消息计费。", "sources": ["https://..."]}],
+  "opposing":   [{"point": "自托管把向量库和模型成本转移到你自己身上。", "sources": ["https://..."]}],
+  "neutral_facts": [{"fact": "Dify Cloud 提供三个付费档位。", "source": "https://..."}],
+  "summary": "对调研发现的平衡综述。",
+  "confidence": "high"
 }
 ```
 
-## 配置
+注意 `search_process` 这个数组。每一轮都记录了用了哪些查询、以及为什么决定继续或停止，所以结论是可追溯的，不是黑箱。第二轮之所以存在，是因为第一轮被判为「不够」，而不是按固定计划硬跑。
 
-1. 从 marketplace 安装（或作为本地插件加入自建 Dify）。
-2. 在 provider 凭据里配置**至少一个**搜索后端：
-   - **Serper** —— 从 [serper.dev](https://serper.dev) 拿的 API key（推荐）。
-   - **SerpApi** —— 从 [serpapi.com](https://serpapi.com) 拿的 API key。
-   - **Google Programmable Search** —— API key **加**搜索引擎 ID（`cx`）。
-   - **Bing Web Search** —— Azure 订阅密钥。
-   - **SearXNG** —— 自建实例的 base URL（需开启 JSON 输出）。
-3. 把 `Smart Search` 工具加进 agent 或 workflow，选好模型即可运行。
+## 为什么不用普通搜索插件？
 
-插件会优雅降级：主力后端不可用或被限流时，自动尝试下一个已配置的后端。
+| | 普通搜索插件 | 智能搜索（满血版） |
+|---|---|---|
+| 搜索轮数 | 一次 | 最多三轮，结果不够就换角度重搜 |
+| 查询处理 | 原样发送查询词 | 先拆成 2-3 个搜索角度 |
+| 结果评估 | 无 | 评估相关性并决定是否继续 |
+| 输出 | 一列链接 | 支持 / 反对 / 中性三类要点，各带来源 |
+| 搜索后端 | 通常一个 | 六个，按顺序尝试并自动降级 |
 
-## 出站访问域名
+## 搜索后端
 
-插件**只会**向以下目标发起出站请求：
+**至少配置一个** API 密钥。插件按下表顺序尝试后端；某个后端未配置、不可用或被限流时，自动落到下一个。
+
+| 顺序 | 后端 | 凭据 | 说明 |
+|---|---|---|---|
+| 1 | **DeepSeek 搜索** | DeepSeek API 密钥 | 单次成本最低，中文覆盖最好。低于其相关性阈值的结果会在进入模型前被丢弃。 |
+| 2 | Serper | serper.dev API 密钥 | Google SERP |
+| 3 | SerpApi | serpapi.com API 密钥 | Google SERP |
+| 4 | Google Programmable Search | API 密钥 + 搜索引擎 ID（`cx`） | |
+| 5 | Bing Web Search | Azure 订阅密钥 | |
+| 6 | SearXNG | 基础地址 | 自建实例，需开启 JSON 输出 |
+
+未配置的后端会被瞬时跳过，不产生任何成本。只配一个后端也完全可用，插件不要求配满整条链。
+
+## 工作流程
+
+```
+[1] 拆词   -> 工作区 LLM 提出 2-3 个搜索角度
+[2] 搜索   -> 按顺序使用已配置的后端
+[3] 评质   -> LLM 统计相关条数并判断是否足够
+              -> 「不够」且还有轮数？带着新角度回到 [1]
+[4] 抓正文 -> 可选：从高质量结果页读取正文
+[5] 汇总   -> 支持 / 反对 / 中性要点，各带来源
+```
+
+所有 LLM 调用都走 Dify 的**反向调用**：插件使用工作区自己的模型和凭据，自身不持有任何 LLM API 密钥。
+
+## 安装与配置
+
+1. 从市场安装本插件，或在自托管的 Dify 中作为本地插件添加。
+2. 至少配置一个搜索后端（见上表）。DeepSeek 是成本最低的选项，也是中文内容的最佳选择。
+3. 把 **智能搜索** 工具加到 Agent 或工作流中，选择模型后运行。
+
+插件会优雅降级：主后端不可用或被限流时，自动尝试下一个已配置的后端。
+
+## 参数
+
+| 名称 | 类型 | 必填 | 默认值 | 说明 |
+|---|---|---|---|---|
+| `query` | string | 是 | - | 要调研的问题或主题。 |
+| `model` | model-selector | 是 | - | 用于拆词、评质和汇总的工作区 LLM。 |
+| `max_rounds` | number | 否 | 3 | 最大搜索轮数（1-10）。 |
+| `fetch_content` | boolean | 否 | false | 抓取并阅读高质量结果的页面正文，遵守 `robots.txt`。 |
+
+## 出网访问
+
+插件**只会**向以下目标发起出网连接请求：
 
 - 管理员已配置的搜索后端：
+  - `https://api.deepseek.com`（DeepSeek 搜索）
   - `https://google.serper.dev`
   - `https://serpapi.com`
   - `https://www.googleapis.com`
   - `https://api.bing.microsoft.com`
-  - 配置的 **SearXNG base URL**（自建，由运营者指定）
-- 结果页 URL，**仅在开启 `fetch_content` 时**，且必须先确认目标站的 `robots.txt` 允许抓取。
+  - 已配置的 **SearXNG 基础地址**（自建、由运营者指定）
+- 结果页 URL，**仅在开启 `fetch_content` 时**，且只在目标站点的 `robots.txt` 明确允许抓取的情况下。
 
-不会访问任何其他主机。**没有任何形式的网页裸爬。**
+不访问其他任何主机。本插件**不包含任何网页抓取**。
 
-## 两个版本
+## 源码与许可
 
-本插件是一对姊妹插件中的"满血版"。另一位是**智能搜索（裸爬版）**
-（[仓库](https://github.com/Kagurazaka135/dify-smart-search-scraper)），
-跑**完全相同**的「拆词 → 搜索 → 评质 → 重搜 → 汇总」流水线，只把搜索层换掉。
-按自己的场景挑取舍：
+源码：<https://github.com/Kagurazaka135/dify-smart-search-full>
 
-| | **满血版**（本插件） | **裸爬版** |
-|---|---|---|
-| 搜索层 | 官方搜索 API | 直接读公开结果页（HTML） |
-| 后端 | Serper / SerpApi / Google CSE / Bing / SearXNG | Bing / DuckDuckGo |
-| 凭据 | 需至少一个 API key | **零凭据** |
-| `fetch_content` | 遵守 `robots.txt` | 直接抓取，不查 `robots.txt` |
-| 定位 | 上架 marketplace / 通用 | 个人自用 / 自建环境 |
+MIT 许可。
 
-想要零配置、零 API key → 用裸爬版；想要只走官方 API、且能上架的版本 → 用本插件。
-
-## 许可
-
-MIT
+另有一个姊妹插件，直接读取公开结果页而不调用搜索 API：<https://github.com/Kagurazaka135/smart-search-scraper>。它面向个人与自托管使用；本插件才是面向市场的那个。

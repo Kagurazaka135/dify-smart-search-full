@@ -12,12 +12,13 @@ class SmartSearchFullProvider(ToolProvider):
         google_cx = (credentials.get("google_cx") or "").strip()
         bing = (credentials.get("bing_api_key") or "").strip()
         searxng = (credentials.get("searxng_base_url") or "").strip()
+        deepseek = (credentials.get("deepseek_api_key") or "").strip()
 
-        if not any([serper, serpapi, google_key and google_cx, bing, searxng]):
+        if not any([deepseek, serper, serpapi, google_key and google_cx, bing, searxng]):
             raise ToolProviderCredentialValidationError(
-                "Configure at least one search backend: a Serper API key, a "
-                "SerpApi key, a Google API key + Search Engine ID (cx), a Bing "
-                "Web Search key, or a SearXNG base URL."
+                "Configure at least one search backend: a DeepSeek API key, a "
+                "Serper API key, a SerpApi key, a Google API key + Search Engine "
+                "ID (cx), a Bing Web Search key, or a SearXNG base URL."
             )
 
         if google_key and not google_cx:

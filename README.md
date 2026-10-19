@@ -1,99 +1,128 @@
 # Smart Search (Full)
 
-A Dify tool plugin that turns a single question into a **multi-round, LLM-driven web
-research pass** and returns a structured, balanced summary.
+**Multi-round web search and research for Dify agents and workflows.**
 
-Most search plugins in the marketplace do one thing: take a query, call a search
-API, hand back a list of ten links. This plugin fills the gap one step further up the
-stack — it *plans* the search, *judges* what came back, *re-searches* when the results
-are thin, and *reports* the answer with supporting and opposing points separated out.
+Most search plugins in the marketplace do one thing: take a query, call a search API,
+hand back ten links, and stop. This one treats search as a process. It plans several
+angles, runs them, judges what came back, searches again when the results are thin, and
+reports a structured answer with supporting and opposing points kept apart.
 
-## What it does
+Use it when a single search engine query is not enough: market research, competitive
+analysis, fact checking, literature scanning, or any question whose answer is spread
+across several sources.
+
+## What you get
+
+You give it a question. You get back a research pass you can audit:
+
+```json
+{
+  "search_process": [
+    {"round": 1, "queries": ["Dify self-hosted vs cloud", "Dify Cloud pricing"],
+     "relevant": 7, "verdict": "borderline"},
+    {"round": 2, "queries": ["Dify cloud data residency", "Dify self-hosted cost at scale"],
+     "relevant": 12, "verdict": "sufficient"}
+  ],
+  "supporting": [{"point": "Self-hosting removes per-message billing.", "sources": ["https://..."]}],
+  "opposing":   [{"point": "Self-hosting shifts vector DB and model costs onto you.", "sources": ["https://..."]}],
+  "neutral_facts": [{"fact": "Dify Cloud offers three paid tiers.", "source": "https://..."}],
+  "summary": "A balanced synthesis of the findings.",
+  "confidence": "high"
+}
+```
+
+Note the `search_process` array. Every round records the queries it used and why it
+decided to continue or stop, so the answer is traceable rather than a black box. Round
+two exists because round one was judged thin, not because of a fixed schedule.
+
+## Why not a plain search plugin?
+
+| | Plain search plugins | Smart Search (Full) |
+|---|---|---|
+| Search rounds | One | Up to three, re-searching when results are thin |
+| Query handling | Sends your query as-is | Expands it into 2-3 search angles first |
+| Judging results | None | Scores relevance and decides whether to continue |
+| Output | A list of links | Supporting / opposing / neutral points, each with sources |
+| Search backends | Usually one | Six, tried in order with automatic fallback |
+
+## Search backends
+
+Configure **at least one** API key. The plugin tries backends in the order below and
+falls through to the next one when a backend is unset, unavailable, or rate-limited.
+
+| Order | Backend | Credentials | Notes |
+|---|---|---|---|
+| 1 | **DeepSeek Search** | DeepSeek API key | Cheapest per request and the strongest Chinese coverage. Results below its relevance threshold are discarded before they reach the model. |
+| 2 | Serper | serper.dev API key | Google SERP |
+| 3 | SerpApi | serpapi.com API key | Google SERP |
+| 4 | Google Programmable Search | API key and search engine ID (`cx`) | |
+| 5 | Bing Web Search | Azure subscription key | |
+| 6 | SearXNG | Base URL | Self-hosted instance with JSON output enabled |
+
+Backends that are not configured are skipped instantly at no cost. If you configure only
+one, you get one — the plugin does not require the full chain.
+
+## How it works
 
 ```
-[1] Query expansion   -> the workspace LLM proposes 2-3 search angles
-[2] Concurrent search -> Serper / SerpApi (primary), Google CSE / Bing / SearXNG as fallbacks
-[3] Quality scoring   -> the LLM counts relevant hits and rates sufficiency
-                         -> "not enough" and rounds remain? go back to [1] with new angles
-[4] Content fetch     -> optional, opt-in: pull page text from high-quality URLs
-[5] Structured summary -> positive / negative / neutral points, each with sources
+[1] Query expansion    -> the workspace LLM proposes 2-3 search angles
+[2] Search             -> the configured backends, tried in order
+[3] Quality scoring    -> the LLM counts relevant hits and rates sufficiency
+                          -> "not enough" and rounds remain? go back to [1] with new angles
+[4] Content fetch      -> optional: pull page text from high-quality URLs
+[5] Structured summary -> supporting / opposing / neutral points, each with sources
 ```
 
-Every LLM call runs through Dify's **reverse invocation**: the plugin uses the
-workspace's own models and credentials, and never holds an LLM API key of its own.
+Every LLM call runs through Dify's **reverse invocation**. The plugin uses the
+workspace's own models and credentials and never holds an LLM API key of its own.
+
+## Setup and usage
+
+1. Install the plugin from the marketplace, or add it as a local plugin on a
+   self-hosted Dify instance.
+2. Configure at least one search backend (see the table above). DeepSeek is the
+   cheapest option and the best choice for Chinese-language content.
+3. Add the **Smart Search** tool to an agent or workflow, select a model, and run it.
+
+Basic usage in an agent: ask a research-shaped question. The tool decides how many
+rounds it needs; `max_rounds` caps it. In a workflow, wire the tool node's `json` output
+into a downstream LLM or code node when you want the structured fields rather than the
+prose `text` output.
+
+The plugin degrades gracefully: if the primary backend is unavailable or rate-limited,
+it automatically tries the next configured backend.
 
 ## Parameters
 
 | Name | Type | Required | Default | Description |
 |---|---|---|---|---|
-| `query` | string | yes | — | The question or topic to research. |
-| `model` | model-selector | yes | — | Workspace LLM used for expansion, scoring and summarization. |
-| `max_rounds` | number | no | `3` | Maximum search rounds before the plugin stops refining. |
-| `fetch_content` | boolean | no | `false` | Fetch and read page text from top result URLs (respects `robots.txt`). |
-
-## Output
-
-```json
-{
-  "search_process": [
-    {"round": 1, "queries": ["..."], "relevant": 5, "verdict": "not enough"}
-  ],
-  "supporting": [{"point": "...", "sources": ["https://..."]}],
-  "opposing": [{"point": "...", "sources": ["https://..."]}],
-  "neutral_facts": [{"fact": "...", "source": "https://..."}],
-  "summary": "200-300 word synthesis with a confidence judgement.",
-  "confidence": "high | medium | low"
-}
-```
-
-## Setup
-
-1. Install the plugin from the marketplace (or add it as a local plugin in a
-   self-hosted Dify).
-2. Configure the provider credentials with **at least one** search backend:
-   - **Serper** — an API key from [serper.dev](https://serper.dev) (recommended).
-   - **SerpApi** — an API key from [serpapi.com](https://serpapi.com).
-   - **Google Programmable Search** — an API key **and** a search-engine ID (`cx`).
-   - **Bing Web Search** — an Azure subscription key.
-   - **SearXNG** — the base URL of a self-hosted instance with the JSON format enabled.
-3. Add the `Smart Search` tool to an agent or workflow, pick a model, and run it.
-
-The plugin degrades gracefully: if the primary backend is unavailable or rate-limited,
-it automatically tries the next configured backend.
+| `query` | string | yes | - | The question or topic to research. |
+| `model` | model-selector | yes | - | Workspace LLM used for expansion, scoring and summarization. |
+| `max_rounds` | number | no | 3 | Maximum number of search rounds (1-10). |
+| `fetch_content` | boolean | no | false | Fetch and read page text from top results. Respects `robots.txt`. |
 
 ## Outbound network access
 
-The plugin makes outbound requests **only** to the following destinations:
+The plugin makes outbound connection requests **only** to the destinations below:
 
-- Search backends the administrator has configured:
+- The search backends the administrator has configured:
+  - `https://api.deepseek.com` (DeepSeek Search)
   - `https://google.serper.dev`
   - `https://serpapi.com`
   - `https://www.googleapis.com`
   - `https://api.bing.microsoft.com`
   - the configured **SearXNG base URL** (self-hosted, operator-defined)
 - Result-page URLs, **only when `fetch_content` is enabled**, and only after the
-  target's `robots.txt` explicitly allows fetching.
+  target site's `robots.txt` explicitly allows fetching.
 
-No other host is contacted. There is **no web scraping** of any kind.
+No other host is contacted. There is **no web scraping** of any kind in this plugin.
 
-## The two versions
+## Source and license
 
-This plugin is one half of a pair. Its sibling, **Smart Search (Scraper)**
-([repository](https://github.com/Kagurazaka135/dify-smart-search-scraper)), runs the
-exact same plan → search → judge → re-search → report pipeline, but swaps the search
-layer out. Pick whichever trade-off fits your setup:
+Source code: <https://github.com/Kagurazaka135/dify-smart-search-full>
 
-| | **Full** (this plugin) | **Scraper** |
-|---|---|---|
-| Search layer | Official search APIs | Reads public result pages directly (HTML) |
-| Backends | Serper / SerpApi / Google CSE / Bing / SearXNG | Bing / DuckDuckGo |
-| Credentials | At least one API key | **None** |
-| `fetch_content` | Honors `robots.txt` | Fetches directly, no `robots.txt` check |
-| Intended for | Marketplace / general use | Personal & self-hosted use |
+MIT licensed.
 
-Want zero setup and no API keys? Use the Scraper. Want a version that only talks to
-official APIs — and can be published to the marketplace? Use this one.
-
-## License
-
-MIT
+A sibling plugin that reads public result pages directly instead of calling search APIs
+is available at <https://github.com/Kagurazaka135/smart-search-scraper>. It is intended
+for personal and self-hosted use; this plugin is the one intended for the marketplace.

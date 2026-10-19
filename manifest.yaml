@@ -1,4 +1,4 @@
-version: 0.0.4
+version: 0.0.5
 type: plugin
 author: kagurazaka135
 name: smart-search-full
@@ -8,10 +8,10 @@ label:
   ja_JP: スマート検索（フル）
   pt_BR: Busca Inteligente (Completo)
 description:
-  en_US: Multi-round LLM-driven web search with query expansion, quality scoring and structured summarization.
-  zh_Hans: 多轮 LLM 驱动的网页搜索——自动拆词、评质、换词重搜，并输出结构化正反方汇总。
-  ja_JP: マルチラウンドの LLM 駆動ウェブ検索。クエリ拡張、品質評価、構造化要約を提供します。
-  pt_BR: Busca na web em múltiplas rodadas com expansão de consulta, avaliação de qualidade e resumo estruturado.
+  en_US: Multi-round LLM-driven web search engine tool with query expansion, quality scoring and structured summarization. Six search backends with automatic fallback.
+  zh_Hans: 多轮 LLM 驱动的网页搜索引擎工具——自动拆词、评质、换词重搜，输出结构化正反方汇总，六个搜索后端自动降级。
+  ja_JP: マルチラウンドの LLM 駆動ウェブ検索エンジンツール。クエリ拡張、品質評価、構造化要約、6 つのバックエンド自動フォールバック対応。
+  pt_BR: Ferramenta de motor de busca web em múltiplas rodadas com expansão de consulta, avaliação de qualidade, resumo estruturado e seis backends com fallback automático.
 icon: icon.svg
 icon_dark: icon-dark.svg
 resource:
@@ -24,7 +24,7 @@ plugins:
   tools:
     - provider/smart_search_full.yaml
 meta:
-  version: 0.0.4
+  version: 0.0.5
   arch:
     - amd64
     - arm64

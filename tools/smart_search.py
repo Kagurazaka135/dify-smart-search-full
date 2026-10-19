@@ -17,6 +17,9 @@ MAX_RESULTS = 10
 MAX_CONTENT = 5000
 MAX_FETCH_PAGES = 5
 BACKEND_TIMEOUT = 15
+DEEPSEEK_SEARCH_URL = "https://api.deepseek.com/v1/tools/search"
+DEEPSEEK_MIN_SCORE = 1.5      # official "quality" cutoff; measured garbage sits at 0.1-0.85
+DEEPSEEK_MAX_SUMMARY = 800    # cap the long summary fed to the LLM
 USER_AGENT = "SmartSearchDifyPlugin/0.0.1 (+https://github.com/Kagurazaka135/dify-smart-search-full)"
 
 _S1 = (
@@ -75,7 +78,7 @@ class SmartSearchTool(Tool):
 
             round_results: list[dict[str, str]] = []
             for keyword in current:
-                backend, results = self._search(credentials, keyword)
+                backend, results = self._search(credentials, keyword, query)
                 if results:
                     round_results.extend(results)
                     collected.append((round_idx, keyword, backend, results))
@@ -175,9 +178,15 @@ class SmartSearchTool(Tool):
     # ---------- search backends (official APIs only, no scraping) ----------
 
     def _search(
-        self, credentials: dict[str, Any], query: str
+        self, credentials: dict[str, Any], query: str, original_query: str = ""
     ) -> tuple[str, list[dict[str, str]]]:
         backends = [
+            (
+                "DeepSeek",
+                lambda: self._deepseek(
+                    credentials.get("deepseek_api_key"), query, original_query
+                ),
+            ),
             ("Serper", lambda: self._serper(credentials.get("serper_api_key"), query)),
             ("SerpApi", lambda: self._serpapi(credentials.get("serpapi_api_key"), query)),
             (
@@ -202,6 +211,35 @@ class SmartSearchTool(Tool):
                     return name, results
                 break
         return "none", []
+
+    def _deepseek(
+        self, key: str | None, query: str, original_query: str = ""
+    ) -> list[dict[str, str]]:
+        if not key:
+            return []
+        payload: dict[str, Any] = {"query": query, "count": MAX_RESULTS}
+        if original_query:
+            payload["ori_question"] = original_query[:128]
+        resp = requests.post(
+            DEEPSEEK_SEARCH_URL,
+            json=payload,
+            headers={
+                "Authorization": f"Bearer {key}",
+                "Content-Type": "application/json",
+            },
+            timeout=BACKEND_TIMEOUT,
+        )
+        resp.raise_for_status()
+        hits: list[dict[str, str]] = []
+        for item in resp.json().get("results", [])[:MAX_RESULTS]:
+            if float(item.get("rerank_score") or 0) < DEEPSEEK_MIN_SCORE:
+                continue
+            hit = self._hit(item.get("title"), item.get("snippet"), item.get("url"))
+            summary = (item.get("summary") or "").strip()
+            if summary:
+                hit["detail"] = summary[:DEEPSEEK_MAX_SUMMARY]
+            hits.append(hit)
+        return hits
 
     def _serper(self, key: str | None, query: str) -> list[dict[str, str]]:
         if not key:
@@ -389,9 +427,8 @@ class SmartSearchTool(Tool):
     def _format_results(results: list[dict[str, str]]) -> str:
         lines = []
         for index, hit in enumerate(results, 1):
-            lines.append(
-                f"[{index}] {hit['title']}\n    {hit['snippet'][:200]}\n    {hit['url']}"
-            )
+            body = hit.get("detail") or hit.get("snippet", "")[:200]
+            lines.append(f"[{index}] {hit['title']}\n    {body}\n    {hit['url']}")
         return "\n".join(lines)
 
     @staticmethod
